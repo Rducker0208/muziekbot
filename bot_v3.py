@@ -209,9 +209,11 @@ def main():
     # Command voor het aanspassen van het volume van de spelende muziek
     @bot.command()
     async def volume(ctx, content):
-        global first_run
         voice = ctx.voice_client
-        volume_to_use = int(content) / 100
+        try:
+            volume_to_use = int(content) / 100
+        except ValueError:
+            return await ctx.send('Please provide a volume between 0 and 100.')
         if voice is None:
             return await ctx.send('Multibot is not in a voicechannel.')
         if not 101 > int(content) >= 0:
@@ -224,7 +226,6 @@ def main():
         # 1ste aanpassing
         else:
             voice.source = discord.PCMVolumeTransformer(voice.source, volume=volume_to_use * 2)
-            print(ctx.voice_client.source.volume)
 
         await ctx.send(f'Volume changed to {content}%')
 
