@@ -187,47 +187,15 @@ def main():
     # Word getriggerd als bot online gaat
     @bot.event
     async def on_ready():
-        print(str(bot.user) + ' online')
+        global queue
         kill_channel = bot.get_channel(1175212011060199524)
         await kill_channel.send(str(kill_code))
         await bot.change_presence(activity=discord.Game(name='Waiting for a song to play...'))
+        await bot.load_extension('cogs.bot_v3_controls')
+        await bot.load_extension('cogs.bot_v3_playing_music')
+        await bot.load_extension('cogs.bot_v3_queue')
 
-    # Command voor het joinen van een vc door de bot
-    @bot.command()
-    async def join(ctx):
-        voice_channel = ctx.author.voice.channel
-        vc_id = voice_channel.id
-        vc_name = '<' + '#' + str(vc_id) + '>'
-
-        if ctx.voice_client is None:  # als bot niet in vc is
-            await ctx.send('Joining voice channel: ' + vc_name)
-            await voice_channel.connect()
-        else:
-            await ctx.voice_client.move_to(voice_channel)
-            await ctx.send(f'Moved to: {vc_name}')
-
-    # Command voor het aanspassen van het volume van de spelende muziek
-    @bot.command()
-    async def volume(ctx, content):
-        voice = ctx.voice_client
-        try:
-            volume_to_use = int(content) / 100
-        except ValueError:
-            return await ctx.send('Please provide a volume between 0 and 100.')
-        if voice is None:
-            return await ctx.send('Multibot is not in a voicechannel.')
-        if not 101 > int(content) >= 0:
-            return await ctx.send('Please provide a volume between 0 and 100.')
-
-        # 2de aanpassing van volume of later
-        if hasattr(ctx.voice_client.source, 'volume'):
-            ctx.voice_client.source.volume = volume_to_use * 2
-
-        # 1ste aanpassing
-        else:
-            voice.source = discord.PCMVolumeTransformer(voice.source, volume=volume_to_use * 2)
-
-        await ctx.send(f'Volume changed to {content}%')
+        print(str(bot.user) + ' online')
 
 
 
@@ -244,58 +212,59 @@ def main():
 
 
 
-    # Command die een enkel lied afspeelt, als er al iets speelt wordt dit gestopt
-    @bot.command()
-    async def play(ctx, *, play_url):
-        global queue
-        # , song_to_play, source, fetch_message, first_run
-        play_url_yt_track = play_url[:32]
-        if play_url_yt_track == 'https://www.youtube.com/watch?v=':
-            if play_url[-5:-2] == '&t=':
-                play_url = play_url[:-5]
-            else:
-                pass
 
-            if ctx.voice_client is None:
-                await join(ctx)
-
-            play_song(ctx, play_url)
-
-            # await
-
-
-
-
-
-
-    # Functie die daadwerkelijk het lied speelt
-    def play_song(ctx, song_to_play_link):
-        FFMPEG_OPTIONS = {'executable': FFMPEG_PATH,
-                          'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5',
-                          'options': '-vn'}
-        YT_DLP_OPTIONS = {'format': 'bestaudio'}
-        vc = ctx.voice_client
-        with yt_dlp.YoutubeDL(YT_DLP_OPTIONS) as ydlp:
-            if song_to_play_link in queue:
-                queue.remove(song_to_play_link)
-            info = ydlp.extract_info("ytsearch:%s" % song_to_play_link, download=False)['entries'][0]
-            url2 = info['url']
-            source_to_play = discord.FFmpegPCMAudio(url2, **FFMPEG_OPTIONS)
-            vc.play(source_to_play, after=lambda e: asyncio.run_coroutine_threadsafe(play_from_queue(ctx), bot.loop))
-
-    # Functie voor het spelen van een lied uit de queue
-    async def play_from_queue(ctx):  #speel items uit qeue, herhaalt zich dmv lambda functie
-        global queue, first_run
-        print('play from qeue')
-        if not queue:
-            await ctx.send('Qeue is empty, please provide a new song or playlist')
-            return await bot.change_presence(activity=discord.Game(name='Waiting for a song to play...'))
-        else:
-            song_to_play = queue[0]
-            play_song(ctx, song_to_play)
-            # await current(ctx)
-            # await set_status()
-            first_run = True
+    # # Command die een enkel lied afspeelt, als er al iets speelt wordt dit gestopt
+    # @bot.command()
+    # async def play(ctx, *, play_url):
+    #     global queue
+    #     # , song_to_play, source, fetch_message, first_run
+    #     play_url_yt_track = play_url[:32]
+    #     if play_url_yt_track == 'https://www.youtube.com/watch?v=':
+    #         if play_url[-5:-2] == '&t=':
+    #             play_url = play_url[:-5]
+    #         else:
+    #             pass
+    #
+    #         if ctx.voice_client is None:
+    #             await join(ctx)
+    #
+    #         play_song(ctx, play_url)
+    #
+    #         # await
+    #
+    #
+    #
+    #
+    #
+    #
+    # # Functie die daadwerkelijk het lied speelt
+    # def play_song(ctx, song_to_play_link):
+    #     FFMPEG_OPTIONS = {'executable': FFMPEG_PATH,
+    #                       'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5',
+    #                       'options': '-vn'}
+    #     YT_DLP_OPTIONS = {'format': 'bestaudio'}
+    #     vc = ctx.voice_client
+    #     with yt_dlp.YoutubeDL(YT_DLP_OPTIONS) as ydlp:
+    #         if song_to_play_link in queue:
+    #             queue.remove(song_to_play_link)
+    #         info = ydlp.extract_info("ytsearch:%s" % song_to_play_link, download=False)['entries'][0]
+    #         url2 = info['url']
+    #         source_to_play = discord.FFmpegPCMAudio(url2, **FFMPEG_OPTIONS)
+    #         vc.play(source_to_play, after=lambda e: asyncio.run_coroutine_threadsafe(play_from_queue(ctx), bot.loop))
+    #
+    # # Functie voor het spelen van een lied uit de queue
+    # async def play_from_queue(ctx):  #speel items uit qeue, herhaalt zich dmv lambda functie
+    #     global queue, first_run
+    #     print('play from qeue')
+    #     if not queue:
+    #         await ctx.send('Qeue is empty, please provide a new song or playlist')
+    #         return await bot.change_presence(activity=discord.Game(name='Waiting for a song to play...'))
+    #     else:
+    #         song_to_play = queue[0]
+    #         play_song(ctx, song_to_play)
+    #         # await current(ctx)
+    #         # await set_status()
+    #         first_run = True
 
     bot.run(DISCORD_API_TOKEN)  # run bot
 
