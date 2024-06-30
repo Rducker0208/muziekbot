@@ -6,23 +6,9 @@ class Controls(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    # Command voor het joinen van een vc door de bot
     @commands.command()
     async def join(self, ctx):
-        print(ctx)
-        if hasattr(ctx.author.voice, 'channel'):
-            voice_channel = ctx.author.voice.channel
-            vc_id = voice_channel.id
-            vc_name = '<' + '#' + str(vc_id) + '>'
-        else:
-            return await ctx.send('Please join a voice channel before using this command')
-
-        if ctx.voice_client is None:  # als bot niet in vc is
-            await ctx.send('Joining voice channel: ' + vc_name)
-            await voice_channel.connect()
-        else:
-            await ctx.voice_client.move_to(voice_channel)
-            await ctx.send(f'Moved to: {vc_name}')
+        await join_vc(ctx)
 
     # Command die bot uit de vc haalt
     @commands.command()
@@ -76,3 +62,22 @@ class Controls(commands.Cog):
 
 async def setup(bot):
     await bot.add_cog(Controls(bot))
+
+
+# Command voor het joinen van een vc door de bot
+async def join_vc(ctx):
+    if hasattr(ctx.author.voice, 'channel'):
+        voice_channel = ctx.author.voice.channel
+        vc_id = voice_channel.id
+        vc_name = '<' + '#' + str(vc_id) + '>'
+    else:
+        return await ctx.send('Please join a voice channel before using this command')
+
+    if ctx.voice_client is None:  # als bot niet in vc is
+        await ctx.send('Joining voice channel: ' + vc_name)
+        await voice_channel.connect()
+    else:
+        await ctx.voice_client.move_to(voice_channel)
+        await ctx.send(f'Moved to: {vc_name}')
+
+

@@ -1,8 +1,13 @@
-import os, asyncio, pprint, datetime, uuid, discord, random, yt_dlp, ytmusicapi, lyricsgenius
+import discord
+import lyricsgenius
+import os
+import uuid
+import ytmusicapi
 
+from discord.ext import commands
 from dotenv import load_dotenv
 from googleapiclient.discovery import build
-from discord.ext import commands
+
 
 # Dotenv variables
 load_dotenv()
@@ -19,26 +24,7 @@ yt_api_unofficial = ytmusicapi.YTMusic()
 
 # kill code voor kill command
 kill_code = uuid.uuid4()
-
 first_run = True
-#
-# volume_modified = False
-# delete_buttons = False
-# info_status = False
-#
-# id_chosen_pick = None
-# index_error = None
-#
-# song_link = ''
-# yt_video_id = ''
-# song_to_play = ''
-# source = ''
-# fetch_message = ''
-#
-# data_len = 0
-#
-# song_ids = []
-queue = []
 
 
 # class voor embed met hulpagina's
@@ -177,8 +163,9 @@ def main():
     intents = discord.Intents.default()  # standaard settings
     intents.message_content = True  # mag berichtinhoud lezen
     bot = commands.Bot(command_prefix='mb ', intents=intents)
+    bot.queue = []
 
-    # Call Help class met pagina'a die info bevatten over alle commands
+    # Call Help class met pagina's die info bevatten over alle commands
     @bot.command()
     async def helpme(ctx):
         help_request = HelpEmbed()  # call embed functie om help embed te maken
@@ -187,84 +174,31 @@ def main():
     # Word getriggerd als bot online gaat
     @bot.event
     async def on_ready():
-        global queue
         kill_channel = bot.get_channel(1175212011060199524)
         await kill_channel.send(str(kill_code))
         await bot.change_presence(activity=discord.Game(name='Waiting for a song to play...'))
-        await bot.load_extension('cogs.bot_v3_controls')
-        await bot.load_extension('cogs.bot_v3_playing_music')
-        await bot.load_extension('cogs.bot_v3_queue')
+
+        try:
+            await bot.load_extension('cogs.bot_v3_controls')
+        except discord.ext.commands.errors.ExtensionAlreadyLoaded:
+            pass
+
+        try:
+            await bot.load_extension('cogs.bot_v3_playing_music')
+        except discord.ext.commands.errors.ExtensionAlreadyLoaded:
+            pass
+
+        try:
+            await bot.load_extension('cogs.bot_v3_queue')
+        except discord.ext.commands.errors.ExtensionAlreadyLoaded:
+            pass
+
+        try:
+            await bot.load_extension('cogs.bot_v3_misc')
+        except discord.ext.commands.errors.ExtensionAlreadyLoaded:
+            pass
 
         print(str(bot.user) + ' online')
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    # # Command die een enkel lied afspeelt, als er al iets speelt wordt dit gestopt
-    # @bot.command()
-    # async def play(ctx, *, play_url):
-    #     global queue
-    #     # , song_to_play, source, fetch_message, first_run
-    #     play_url_yt_track = play_url[:32]
-    #     if play_url_yt_track == 'https://www.youtube.com/watch?v=':
-    #         if play_url[-5:-2] == '&t=':
-    #             play_url = play_url[:-5]
-    #         else:
-    #             pass
-    #
-    #         if ctx.voice_client is None:
-    #             await join(ctx)
-    #
-    #         play_song(ctx, play_url)
-    #
-    #         # await
-    #
-    #
-    #
-    #
-    #
-    #
-    # # Functie die daadwerkelijk het lied speelt
-    # def play_song(ctx, song_to_play_link):
-    #     FFMPEG_OPTIONS = {'executable': FFMPEG_PATH,
-    #                       'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5',
-    #                       'options': '-vn'}
-    #     YT_DLP_OPTIONS = {'format': 'bestaudio'}
-    #     vc = ctx.voice_client
-    #     with yt_dlp.YoutubeDL(YT_DLP_OPTIONS) as ydlp:
-    #         if song_to_play_link in queue:
-    #             queue.remove(song_to_play_link)
-    #         info = ydlp.extract_info("ytsearch:%s" % song_to_play_link, download=False)['entries'][0]
-    #         url2 = info['url']
-    #         source_to_play = discord.FFmpegPCMAudio(url2, **FFMPEG_OPTIONS)
-    #         vc.play(source_to_play, after=lambda e: asyncio.run_coroutine_threadsafe(play_from_queue(ctx), bot.loop))
-    #
-    # # Functie voor het spelen van een lied uit de queue
-    # async def play_from_queue(ctx):  #speel items uit qeue, herhaalt zich dmv lambda functie
-    #     global queue, first_run
-    #     print('play from qeue')
-    #     if not queue:
-    #         await ctx.send('Qeue is empty, please provide a new song or playlist')
-    #         return await bot.change_presence(activity=discord.Game(name='Waiting for a song to play...'))
-    #     else:
-    #         song_to_play = queue[0]
-    #         play_song(ctx, song_to_play)
-    #         # await current(ctx)
-    #         # await set_status()
-    #         first_run = True
 
     bot.run(DISCORD_API_TOKEN)  # run bot
 
@@ -272,3 +206,20 @@ def main():
 if __name__ == '__main__':
     main()
 
+#
+# volume_modified = False
+# delete_buttons = False
+# info_status = False
+#
+# id_chosen_pick = None
+# index_error = None
+#
+# song_link = ''
+# yt_video_id = ''
+# song_to_play = ''
+# source = ''
+# fetch_message = ''
+#
+# data_len = 0
+#
+# song_ids = []

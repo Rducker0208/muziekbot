@@ -1,18 +1,17 @@
 # imports
 import asyncio
-import os
-import pprint
-import discord
-import random
-import yt_dlp
 import datetime
-import lyricsgenius
-import ytmusicapi
+import os
+import random
 import uuid
 
+import discord
+import lyricsgenius
+import yt_dlp
+import ytmusicapi
 from discord.ext import commands
-from googleapiclient.discovery import build
 from dotenv import load_dotenv
+from googleapiclient.discovery import build
 
 # Dotenv variables
 load_dotenv()
@@ -22,7 +21,6 @@ YT_API_KEY = os.getenv('YT_API_KEY')
 GENIUS_ACCESS_TOKEN = os.getenv('GENIUS_ACCESS_TOKEN')
 
 # Api builds
-FFMPEG_PATH = 'C:/ffmpeg/ffmpeg.exe'
 youtube = build('youtube', 'v3', developerKey=YT_API_KEY)
 genius = lyricsgenius.Genius(GENIUS_ACCESS_TOKEN)
 yt_api_unofficial = ytmusicapi.YTMusic()
@@ -1046,6 +1044,7 @@ def main():
             duration = duration + last_duration_letter
         elif duration[-1] == ':':  # als lied precies een min ** n is bijv: 6:
             duration = f'{duration}{0}{0}'
+
 
         # Thumnail
         # probeer hoge kwaliteit te krijgen en pak anders een lagere kwaliteit
