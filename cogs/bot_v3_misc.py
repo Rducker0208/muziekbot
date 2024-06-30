@@ -23,8 +23,6 @@ class Misc(commands.Cog):
                 quit()
 
 
-
-
 async def setup(bot):
     await bot.add_cog(Misc(bot))
 

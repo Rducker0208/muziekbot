@@ -22,6 +22,7 @@ GENIUS_ACCESS_TOKEN = os.getenv('GENIUS_ACCESS_TOKEN')
 
 # Api builds
 youtube = build('youtube', 'v3', developerKey=YT_API_KEY)
+FFMPEG_PATH = 'C:/ffmpeg/ffmpeg.exe'
 genius = lyricsgenius.Genius(GENIUS_ACCESS_TOKEN)
 yt_api_unofficial = ytmusicapi.YTMusic()
 
@@ -1044,7 +1045,6 @@ def main():
             duration = duration + last_duration_letter
         elif duration[-1] == ':':  # als lied precies een min ** n is bijv: 6:
             duration = f'{duration}{0}{0}'
-
 
         # Thumnail
         # probeer hoge kwaliteit te krijgen en pak anders een lagere kwaliteit
