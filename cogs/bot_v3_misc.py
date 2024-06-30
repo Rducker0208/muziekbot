@@ -15,6 +15,15 @@ class Misc(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
+    @commands.command()
+    async def kill(self, ctx, content):  # admin_only functie om bot doen te halen
+        if ctx.message.author.id == 770658322054643744:
+            if str(content) == str(ctx.bot.kill_code):
+                await ctx.send(f'shutting down {ctx.bot.user}')
+                quit()
+
+
+
 
 async def setup(bot):
     await bot.add_cog(Misc(bot))
@@ -27,6 +36,20 @@ def get_songinfo(song_id):
     song_artist = response['items'][0]['snippet']['channelTitle']
 
     return song_name, song_artist
+
+
+# check if video is playable or not
+async def check_video_status(video_link):
+    video_id = video_link[32:]
+    data_request = youtube.videos().list(part='snippet', id=video_id)
+    data_request_response = data_request.execute()
+
+    # works if the song is valid
+    try:
+        _ = data_request_response['items'][0]['snippet']['title']
+        return 'valid'
+    except IndexError:
+        return 'invalid'
 
 
 # Command die data verzamelt over huidig lied en dit in een embed verstuurt
@@ -80,7 +103,7 @@ async def current(ctx, song_link):
     # Aanvraag tijd
     time_ms = str(datetime.datetime.now())[11:]
     time_final = time_ms[:8]
-    embed.set_footer(text=f' Requested by: {ctx.message.author} at: {time_final}')
+    embed.set_footer(text=f' Requested by {ctx.message.author} at: {time_final}')
     await ctx.send(embed=embed)
 
 

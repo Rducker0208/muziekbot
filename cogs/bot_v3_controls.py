@@ -77,7 +77,10 @@ async def join_vc(ctx):
         await ctx.send('Joining voice channel: ' + vc_name)
         await voice_channel.connect()
     else:
-        await ctx.voice_client.move_to(voice_channel)
-        await ctx.send(f'Moved to: {vc_name}')
+        if ctx.voice_client.channel == ctx.author.voice.channel:
+            pass
+        else:
+            await ctx.voice_client.move_to(voice_channel)
+            await ctx.send(f'Moved to: {vc_name}')
 
 
