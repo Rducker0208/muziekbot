@@ -35,6 +35,7 @@ def main():
     bot = commands.Bot(command_prefix='mb ', intents=intents)
     bot.queue = []
     bot.kill_code = kill_code
+    bot.current_song = None
 
     # Word getriggerd als bot online gaat
     @bot.event

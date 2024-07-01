@@ -195,7 +195,7 @@ class Playing(commands.Cog):
         with yt_dlp.YoutubeDL(YT_DLP_OPTIONS) as ydlp:
             if song_to_play_link in ctx.bot.queue:
                 ctx.bot.queue.remove(song_to_play_link)
-
+            ctx.bot.current_song = song_to_play_link
             song_info = ydlp.extract_info("ytsearch:%s" % song_to_play_link, download=False)['entries'][0]
             url2 = song_info['url']
             source_to_play = discord.FFmpegPCMAudio(url2, **FFMPEG_OPTIONS)

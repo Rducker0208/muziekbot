@@ -1,12 +1,18 @@
 import os
-import discord
 import datetime
+
+import discord
+import lyricsgenius
 
 from discord.ext import commands
 from googleapiclient.discovery import build
 
 YT_API_KEY = os.getenv('YT_API_KEY')
+GENIUS_ACCESS_TOKEN = os.getenv('GENIUS_ACCESS_TOKEN')
+
 youtube = build('youtube', 'v3', developerKey=YT_API_KEY)
+genius = lyricsgenius.Genius(GENIUS_ACCESS_TOKEN)
+
 
 thumbnail_types = ['maxres', 'high', 'standard', 'default', 'medium']
 
@@ -21,6 +27,59 @@ class Misc(commands.Cog):
             if str(content) == str(ctx.bot.kill_code):
                 await ctx.send(f'shutting down {ctx.bot.user}')
                 quit()
+
+    # Functie die lyrics van een lied verzamelt met genius api en deze dan in een embed plaatst
+    @commands.command()
+    async def lyrics(self, ctx):
+        if ctx.voice_client is None:
+            return await ctx.send('This command is only usable if there is a song playing.')
+        song_id = ctx.bot.current_song[32:]
+
+        data_request = youtube.videos().list(part='snippet', id=song_id)
+        data_response = data_request.execute()
+
+        # clean up song name
+        song_name = data_response['items'][0]['snippet']['title']
+
+        song_name = song_name.replace('(Official Video)', '')
+        song_name = song_name.replace('[Official Video]', '')
+
+        song_name = song_name.split('(')[0]
+        song_name = song_name.split('[')[0]
+
+        # find song name using genius api
+        song = genius.search_song(song_name)
+        if song is None:
+            return await ctx.send('Multibot couldn\'t find that song.')
+
+        # clean up found lyrics
+        song_lyrics = song.lyrics
+        song_lyrics = song_lyrics[2:]
+        song_lyrics = song_lyrics.split('Lyrics')[1]
+        song_lyrics = song_lyrics.replace('[Recording Info]', '')
+        song_lyrics = song_lyrics.replace('Contributors', '')
+        song_lyrics = song_lyrics.replace('Embed', '')
+        song_lyrics = song_lyrics.replace('You might also like', '\n')
+
+        # remove final digits from lyrics if needed
+        if song_lyrics[-1].isdigit() is True:
+            if song_lyrics[-2].isdigit() is True:
+                if song_lyrics[-3].isdigit() is True:
+                    song_lyrics = song_lyrics[:-3]
+                else:
+                    song_lyrics = song_lyrics[:-2]
+            else:
+                song_lyrics = song_lyrics[:-1]
+
+        # send embed with lyrics
+        if not len(song_lyrics) >= 4000:
+            embed = discord.Embed(colour=discord.Colour.dark_embed(),
+                                  title=f'Lyrics of: {song_name}')
+            embed.description = str(song_lyrics)
+            await ctx.send(embed=embed)
+        else:
+            return await ctx.send('Multibot doesn\'t support song lyrics over 4000 characters, sorry for'
+                                  ' the inconvenience')
 
 
 async def setup(bot):
