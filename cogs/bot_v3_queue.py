@@ -1,5 +1,6 @@
 import os
 import random
+import datetime
 
 import discord
 
@@ -110,6 +111,11 @@ class Queue_list_embed(discord.ui.View):
         from_item = until_item - self.seperator
         await self.update_message(self.song_names[from_item:until_item])
 
+    @discord.ui.button(label='delete', style=discord.ButtonStyle.red)
+    async def delete_button(self, interaction: discord.Interaction, button: discord.Button):  # noqa
+        await interaction.response.defer()  # noqa
+        await self.message.delete()
+
 
 class Queuing(commands.Cog):
     def __init__(self, bot):
@@ -160,6 +166,41 @@ class Queuing(commands.Cog):
 
         return await ctx.send(f'Added playlist to qeue: {playlist_name}')
 
+    # Functie die de lengte van queue berekent
+    @commands.command()
+    async def queue_length(self, ctx):
+        total_seconds = 0
+        if not ctx.bot.queue:
+            return await ctx.send('Please create a queue before using this command.')
+
+        for song in ctx.bot.queue:
+            song_id = song[32:]
+            length_request = youtube.videos().list(part='contentDetails', id=song_id)
+            length_response = length_request.execute()
+            song_duration = (length_response['items'][0]['contentDetails']['duration'][2:].
+                             replace('M', ':').replace('S', ''))
+
+            minutes, seconds = song_duration.split(':')
+            if not seconds:
+                seconds = 0
+
+            total_seconds += (int(minutes) * 60 + int(seconds))
+
+        hours = total_seconds // 3600
+        minutes = (total_seconds - (hours * 3600)) // 60
+        seconds = total_seconds - (hours * 3600) - (minutes * 60)
+
+        embed = discord.Embed(colour=discord.Colour.dark_embed(),
+                              title='Queue length')
+        embed.add_field(name='Queue Length:', value=f'{hours} hours, {minutes} minutes and {seconds} seconds',
+                        inline=False)
+        embed.add_field(name='Songs in queue:', value=len(ctx.bot.queue),
+                        inline=False)
+
+        curent_time = str(datetime.datetime.now())[11:-7]
+        embed.set_footer(text=f' Requested by {ctx.message.author} at: {curent_time}')
+        await ctx.send(embed=embed)
+
     @commands.command()
     async def queue_list(self, ctx):
         song_names = []
@@ -189,6 +230,36 @@ class Queuing(commands.Cog):
     async def queue_reverse(self, ctx):
         ctx.bot.queue.reverse()
         return await ctx.send('Successfully reversed queue')
+
+    @commands.command()
+    async def queue_clear(self, ctx):
+        ctx.bot.queue = []
+        return await ctx.send('Successfully cleared queue')
+
+    # move een lied naar een andere plaats in de queue
+    @commands.command()
+    async def move_song(self, ctx, start_index, end_index):
+        try:
+            if not ctx.bot.queue:
+                return await ctx.send('PLease create a queue before using this command')
+
+            try:
+                start_index = int(start_index)
+            except TypeError:
+                return await ctx.send('Please provide a valid start and end location')
+
+            try:
+                end_index = int(end_index)
+            except TypeError:
+                return await ctx.send('Please provide a valid start and end location')
+
+            song = ctx.bot.queue.pop(start_index - 1)
+            ctx.bot.queue.insert(end_index - 1, song)
+
+            return await ctx.send('Successfully moved song')
+
+        except IndexError:
+            return await ctx.send('Please provide a validstart and end location')
 
     # Functie voor het toevoegen van een lied aan de queue
     def add_playlist_to_queue(self, queue, playlist_id, insert_at_front):  # noqa

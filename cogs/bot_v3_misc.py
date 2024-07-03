@@ -81,6 +81,22 @@ class Misc(commands.Cog):
             return await ctx.send('Multibot doesn\'t support song lyrics over 4000 characters, sorry for'
                                   ' the inconvenience')
 
+    # laat info zien over een lied in queue
+    @commands.command()
+    async def song_info(self, ctx, song_index):
+        if not ctx.bot.queue:
+            return await ctx.send('Please create a queue before using this command')
+        try:
+            song_index = int(song_index)
+        except TypeError:
+            return await ctx.send('Please provide a valid song number')
+
+        if song_index - 1 > len(ctx.bot.queue):
+            return await ctx.send('Please provide a valid song number')
+
+        song_link = ctx.bot.queue[song_index]
+        await current(ctx, song_link)
+
 
 async def setup(bot):
     await bot.add_cog(Misc(bot))
@@ -158,9 +174,8 @@ async def current(ctx, song_link):
     embed.add_field(name='Song url:', value=song_link)
 
     # Aanvraag tijd
-    time_ms = str(datetime.datetime.now())[11:]
-    time_final = time_ms[:8]
-    embed.set_footer(text=f' Requested by {ctx.message.author} at: {time_final}')
+    curent_time = str(datetime.datetime.now())[11:-7]
+    embed.set_footer(text=f' Requested by: {ctx.message.author} at: {curent_time}')
     await ctx.send(embed=embed)
 
 

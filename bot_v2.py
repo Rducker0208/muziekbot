@@ -1249,7 +1249,7 @@ def main():
         if content[8:33] != 'www.youtube.com/playlist?':
             return await ctx.send('Please provide a valid youtube url')
         playlist_id = content[38:]
-        add_to_queue(playlist_id, insert_at_front=False)
+        queue = add_to_queue(playlist_id, insert_at_front=False)
         playlist_name = youtube.playlists().list(id=playlist_id,
                                                  part='snippet')
         playlist_name_response = playlist_name.execute()
