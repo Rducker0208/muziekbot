@@ -1,32 +1,19 @@
 import discord
-import lyricsgenius
 import os
 import uuid
-import ytmusicapi
 
 from discord.ext import commands
 from dotenv import load_dotenv
-from googleapiclient.discovery import build
-
 
 # Dotenv variables
 load_dotenv()
-url = os.getenv('DISCORD_URL')
-DISCORD_API_TOKEN = os.getenv('DISCORD_API_TOKEN')
-YT_API_KEY = os.getenv('YT_API_KEY')
-GENIUS_ACCESS_TOKEN = os.getenv('GENIUS_ACCESS_TOKEN')
-
-# Api builds
-FFMPEG_PATH = 'C:/ffmpeg/ffmpeg.exe'
-youtube = build('youtube', 'v3', developerKey=YT_API_KEY)
-yt_api_unofficial = ytmusicapi.YTMusic()
-genius = lyricsgenius.Genius(GENIUS_ACCESS_TOKEN)
+DISCORD_API_TOKEN: str = os.getenv('DISCORD_API_TOKEN')
 
 # kill code voor kill command
-kill_code = uuid.uuid4()
+kill_code: uuid.UUID = uuid.uuid4()
 
 # Cogs
-cog_list = ['cogs.bot_v3_controls', 'cogs.bot_v3_playing_music', 'cogs.bot_v3_queue', 'cogs.bot_v3_misc']
+cog_list: list = ['cogs.bot_v3_controls', 'cogs.bot_v3_playing_music', 'cogs.bot_v3_queue', 'cogs.bot_v3_misc']
 
 
 # Main loop die de bot runnend houdt

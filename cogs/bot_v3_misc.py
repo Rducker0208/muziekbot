@@ -4,42 +4,56 @@ import datetime
 import discord
 import lyricsgenius
 
+from typing import Callable
+
 from discord.ext import commands
 from googleapiclient.discovery import build
 
-YT_API_KEY = os.getenv('YT_API_KEY')
-GENIUS_ACCESS_TOKEN = os.getenv('GENIUS_ACCESS_TOKEN')
+YT_API_KEY: str = os.getenv('YT_API_KEY')
+GENIUS_ACCESS_TOKEN: str = os.getenv('GENIUS_ACCESS_TOKEN')
 
 youtube = build('youtube', 'v3', developerKey=YT_API_KEY)
 genius = lyricsgenius.Genius(GENIUS_ACCESS_TOKEN)
 
 
-thumbnail_types = ['maxres', 'high', 'standard', 'default', 'medium']
+thumbnail_types: list = ['maxres', 'high', 'standard', 'default', 'medium']
 
 
 class Misc(commands.Cog):
+    """Cog containing all miscellaneous commands"""
+
     def __init__(self, bot):
         self.bot = bot
 
     @commands.command()
-    async def kill(self, ctx, content):  # admin_only functie om bot doen te halen
+    async def kill(self, ctx: discord.ext.commands.Context, code: str) -> None:
+        """Admin only function to instantly take down muziekbot"""
+
         if ctx.message.author.id == 770658322054643744:
-            if str(content) == str(ctx.bot.kill_code):
+            if code == str(ctx.bot.kill_code):
                 await ctx.send(f'shutting down {ctx.bot.user}')
                 quit()
 
-    # Functie die lyrics van een lied verzamelt met genius api en deze dan in een embed plaatst
+    @kill.error
+    async def kill_error(self, ctx: discord.ext.commands.Context, error) -> discord.Message | None:
+        if isinstance(error, commands.MissingRequiredArgument):
+            return await ctx.send('The command you are using is missing an argument, please check the help command'
+                                  ' for all required arguments')
+
     @commands.command()
-    async def lyrics(self, ctx):
+    async def lyrics(self, ctx: discord.ext.commands.Context) -> discord.Message:
+        """Returns the lyrics of the currently playing song"""
+
         if ctx.voice_client is None:
             return await ctx.send('This command is only usable if there is a song playing.')
-        song_id = ctx.bot.current_song[32:]
 
+        # collect song name from yt api
+        song_id: str = ctx.bot.current_song[32:]
         data_request = youtube.videos().list(part='snippet', id=song_id)
         data_response = data_request.execute()
 
         # clean up song name
-        song_name = data_response['items'][0]['snippet']['title']
+        song_name: str = data_response['items'][0]['snippet']['title']
 
         song_name = song_name.replace('(Official Video)', '')
         song_name = song_name.replace('[Official Video]', '')
@@ -48,12 +62,12 @@ class Misc(commands.Cog):
         song_name = song_name.split('[')[0]
 
         # find song name using genius api
-        song = genius.search_song(song_name)
+        song: genius.response_format = genius.search_song(song_name)
         if song is None:
             return await ctx.send('Multibot couldn\'t find that song.')
 
         # clean up found lyrics
-        song_lyrics = song.lyrics
+        song_lyrics: str = song.lyrics
         song_lyrics = song_lyrics[2:]
         song_lyrics = song_lyrics.split('Lyrics')[1]
         song_lyrics = song_lyrics.replace('[Recording Info]', '')
@@ -81,53 +95,70 @@ class Misc(commands.Cog):
             return await ctx.send('Multibot doesn\'t support song lyrics over 4000 characters, sorry for'
                                   ' the inconvenience')
 
-    # laat info zien over een lied in queue
     @commands.command()
-    async def song_info(self, ctx, song_index):
+    async def song_info(self,
+                        ctx: discord.ext.commands.Context,
+                        song_index: str = commands.parameter(description='Position in queue of the song'))\
+            -> Callable[[tuple[str, str]], discord.Message] | discord.Message:
+        """Show info on a song in queue"""
+
+        # check of er een queue is
         if not ctx.bot.queue:
             return await ctx.send('Please create a queue before using this command')
-        try:
-            song_index = int(song_index)
-        except TypeError:
+
+        # check of song_index een geldig getal is
+        if not song_index.isnumeric() or not len(ctx.bot.queue) >= int(song_index) >= 1:
             return await ctx.send('Please provide a valid song number')
 
-        if song_index - 1 > len(ctx.bot.queue):
-            return await ctx.send('Please provide a valid song number')
-
-        song_link = ctx.bot.queue[song_index]
+        song_link: str = ctx.bot.queue[int(song_index) - 1]
         await current(ctx, song_link)
 
+    @song_info.error
+    async def song_info_error(self, ctx: discord.ext.commands.Context,
+                              error: discord.ext.commands.MissingRequiredArgument) -> discord.Message | None:
+        if isinstance(error, commands.MissingRequiredArgument):
+            return await ctx.send('The command you are using is missing an argument, please check the help command'
+                                  ' for all required arguments')
 
-async def setup(bot):
-    await bot.add_cog(Misc(bot))
+
+async def setup(bot: discord.ext.commands.Bot) -> None:
+    """Function used to set up this cog"""
+
+    return await bot.add_cog(Misc(bot))
 
 
-def get_songinfo(song_id):
+def get_songinfo(song_id: str) -> tuple[str, str]:
+    """Function that gets song info from youtube api"""
+
     request = youtube.videos().list(part='snippet', id=song_id)
     response = request.execute()
-    song_name = response['items'][0]['snippet']['title']
-    song_artist = response['items'][0]['snippet']['channelTitle']
+    song_name: str = response['items'][0]['snippet']['title']
+    song_artist: str = response['items'][0]['snippet']['channelTitle']
 
     return song_name, song_artist
 
 
-# check if video is playable or not
-async def check_video_status(video_link):
+async def check_video_status(video_link: str) -> str:
+    """Function that checks if a video is playable"""
+
+    # get video info from yt
     video_id = video_link[32:]
     data_request = youtube.videos().list(part='snippet', id=video_id)
     data_request_response = data_request.execute()
 
     # works if the song is valid
     try:
-        _ = data_request_response['items'][0]['snippet']['title']
+        _: str = data_request_response['items'][0]['snippet']['title']
         return 'valid'
     except IndexError:
         return 'invalid'
 
 
-# Command die data verzamelt over huidig lied en dit in een embed verstuurt
-async def current(ctx, song_link):
-    video_id = song_link[32:]
+async def current(ctx: discord.ext.commands.Context, song_link: str) -> discord.Message:
+    """Obtain song infro from yt api and returns this info in an embed"""
+
+    # get song info from yt api
+    video_id: str = song_link[32:]
     data_request = youtube.videos().list(part='snippet', id=video_id)
     duration_request = youtube.videos().list(part='contentDetails', id=video_id)
     data_request_response = data_request.execute()
@@ -137,10 +168,10 @@ async def current(ctx, song_link):
     song_name, song_artist = get_songinfo(video_id)
 
     # release date
-    release_date = data_request_response['items'][0]['snippet']['publishedAt'][:10]
+    release_date: str = data_request_response['items'][0]['snippet']['publishedAt'][:10]
 
     # song duration
-    duration = duration_response['items'][0]['contentDetails']['duration'][2:].replace('M', ':').replace('S', '')
+    duration: str = duration_response['items'][0]['contentDetails']['duration'][2:].replace('M', ':').replace('S', '')
     if ':' not in duration:
         duration = f'{duration} seconds'
     elif duration[-2] == ':':  # als lied 1 cijfer na : heeft bijv 3:7 verander dit in 3:07
@@ -153,7 +184,7 @@ async def current(ctx, song_link):
     # thumbnail image
     for thumbnail_type in thumbnail_types:
         try:
-            thumbnail = data_request_response['items'][0]['snippet']['thumbnails'][thumbnail_type]['url']
+            thumbnail: str | None = data_request_response['items'][0]['snippet']['thumbnails'][thumbnail_type]['url']
             break
         except Exception:  # noqa
             pass
@@ -174,13 +205,14 @@ async def current(ctx, song_link):
     embed.add_field(name='Song url:', value=song_link)
 
     # Aanvraag tijd
-    curent_time = str(datetime.datetime.now())[11:-7]
+    curent_time: str = str(datetime.datetime.now())[11:-7]
     embed.set_footer(text=f' Requested by: {ctx.message.author} at: {curent_time}')
-    await ctx.send(embed=embed)
+    return await ctx.send(embed=embed)
 
 
-# Zet bot status
-async def set_status(ctx, song_link):
-    song_id = song_link[32:]
+async def set_status(ctx: discord.ext.commands.Context, song_link: str) -> None:
+    """Set muziekbot's discord status"""
+
+    song_id: str = song_link[32:]
     song_name, artist = get_songinfo(song_id)
     await ctx.bot.change_presence(activity=discord.Game(name=f'Currently playing: {song_name} by: {artist}.'))
