@@ -18,6 +18,7 @@ cog_list: list = ['cogs.bot_v3_controls', 'cogs.bot_v3_playing_music', 'cogs.bot
 
 # Main loop die de bot runnend houdt
 def main():
+
     # Setup
     intents = discord.Intents.default()  # standaard settings
     intents.message_content = True  # mag berichtinhoud lezen
@@ -31,6 +32,7 @@ def main():
     # Word getriggerd als bot online gaat
     @bot.event
     async def on_ready():
+
         # stuur code om bot instant down te halen
         kill_channel = bot.get_channel(1175212011060199524)
         await kill_channel.send(str(kill_code))

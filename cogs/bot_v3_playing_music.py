@@ -1,5 +1,4 @@
 import asyncio
-import os
 
 import discord
 import yt_dlp
@@ -10,57 +9,54 @@ from cogs.bot_v3_controls import join_vc
 from cogs.bot_v3_queue import Queuing
 from cogs.bot_v3_misc import current, set_status, check_video_status, get_songinfo
 
-from googleapiclient.discovery import build
-
-YT_API_KEY = os.getenv('YT_API_KEY')
-youtube = build('youtube', 'v3', developerKey=YT_API_KEY)
 yt_api_unofficial = ytmusicapi.YTMusic()
-FFMPEG_PATH = 'C:/ffmpeg/ffmpeg.exe'
-working_video = True
-song_to_play = None
+FFMPEG_PATH: str = 'C:/ffmpeg/ffmpeg.exe'
+
+song_to_play: str | None = None
 
 
-# class voor embed om lied te kiezen
 class PicksongEmbed(discord.ui.View):
-    def __init__(self, ctx, search_string, bot, add_to_qeue):  # noqa
+    """Embed that contains 5 songs which the user can pick 1 off to start playing/queue"""
+
+    def __init__(self, ctx, search_string, add_to_queue):
         super().__init__()
-        self.message = None
-        self.chosen_id = None
-        self.id_chosen_pick = None
-        self.embed_counter = 0
-        self.api_counter = 0
-        self.song_counter = 1
-        self.song_ids = []
-        self.song_options = []
-        self.search_string = search_string
-        self.ctx = ctx
-        self.bot = bot
-        self.add_to_qeue = add_to_qeue
+        self.ctx: discord.ext.commands.Context = ctx
+        self.search_string: str = search_string
+        self.add_to_queue: bool = add_to_queue
 
-    # Functie die embed met buttons stuurt
-    async def send(self):
-        embed = await self.create_embed()
-        self.message = await self.ctx.send(embed=embed, view=self)  # update bericht
+        self.message: discord.Message | None = None
+        self.chosen_id: str | None = None
+        self.song_option_counter: int = 1
+        self.song_counter: int = 0
+        self.song_ids: list = []
+        self.song_options: list = []
 
-    # Functie die ervoor zorgt dat de embed data bevat
-    async def create_embed(self):
+    async def send(self) -> None:
+        """Function that sends the message including the embed"""
+
+        embed: discord.Embed = await self.create_embed()
+        self.message: discord.Message = await self.ctx.send(embed=embed, view=self)
+
+    async def create_embed(self) -> discord.Embed | discord.Message:
+        """Function that gets song names/ids and puts them into an embed"""
+
         embed = discord.Embed(title='Pick a song:',
                               colour=discord.Colour.dark_embed())
 
         # verzamel top 5 liedjes aan de hand van search string
         for i in range(5):
             try:
-                videoId = yt_api_unofficial.search(self.search_string)[self.api_counter]['videoId']
+                videoId = yt_api_unofficial.search(self.search_string)[self.song_counter]['videoId']
             except KeyError:
                 try:
-                    videoId = yt_api_unofficial.search(self.search_string)[self.api_counter + 1]['videoId']
+                    videoId = yt_api_unofficial.search(self.search_string)[self.song_counter + 1]['videoId']
                 except KeyError:
                     try:
-                        videoId = yt_api_unofficial.search(self.search_string)[self.api_counter + 2]['videoId']
+                        videoId = yt_api_unofficial.search(self.search_string)[self.song_counter + 2]['videoId']
                     except KeyError:
                         return await self.ctx.send('Couldn\'t find that song, please check your spelling and retry.')
             self.song_ids.append(videoId)
-            self.api_counter += 1
+            self.song_counter += 1
 
         # verander eerder verzamelde ids in namen
         for song_id in self.song_ids:
@@ -70,18 +66,21 @@ class PicksongEmbed(discord.ui.View):
         # voeg tekst toe aan embed
         for song_option in self.song_options:
             embed.add_field(name='',
-                            value=f'{self.song_counter}.{song_option}',
+                            value=f'{self.song_option_counter}.{song_option}',
                             inline=False)
-            self.song_counter += 1
+            self.song_option_counter += 1
+
         return embed
 
-    async def update_message(self):
+    async def update_message(self) -> None:
+        """Function that updates the message and deletes it if needed"""
+
         global song_to_play
         song_to_play = None
-        if self.add_to_qeue is True:
+        if self.add_to_queue is True:
             self.ctx.bot.append(f'https://www.youtube.com/watch?v={self.chosen_id}')
             await self.message.delete()
-        elif self.add_to_qeue == 'front':
+        elif self.add_to_queue == 'front':
             self.ctx.bot.insert(0, f'https://www.youtube.com/watch?v={self.chosen_id}')
             await self.message.delete()
         else:
@@ -120,27 +119,38 @@ class PicksongEmbed(discord.ui.View):
 
 
 class Playing(commands.Cog):
+    """Cog that contains all commands used to play music"""
+
     def __init__(self, bot):
-        self.bot = bot
+        self.bot: discord.ext.commands.Bot = bot
         self.queuing = Queuing(self.bot)
 
-    # Command die een speellijst speelt met de Veronica top 1000
     @commands.command()
-    async def top1000(self, ctx):
+    async def top1000(self, ctx: discord.ext.commands.Context.voice_client) -> None:
+        """Wipe queue and replace it with veronica's top 1000"""
+
         if ctx.voice_client is None:
             await join_vc(ctx)
-        playlist_id = 'PLIwZ2BK481_17wMRlFBpj4thz-m7gGdF9'
-        ctx.bot.queue = self.queuing.add_playlist_to_queue([], playlist_id, False)
+
+        await ctx.send('Starting queue process')
+
+        playlist_id: str = 'PLIwZ2BK481_17wMRlFBpj4thz-m7gGdF9'
+        ctx.bot.queue: list = self.queuing.add_playlist_to_queue([], playlist_id, False)
 
         await ctx.send('Added top1000 to qeue')
-        if ctx.voice_client.is_playing() is False:
-            await self.play_from_queue(ctx)
 
-    # Command die een enkel lied afspeelt, als er al iets speelt wordt dit gestopt
+        if ctx.voice_client.is_playing() is False:
+            return await self.play_from_queue(ctx)
+
     @commands.command()
-    async def play(self, ctx, *, yt_url):
+    async def play(self, ctx: discord.ext.commands.Context.voice_client, *,
+                   yt_url: str = commands.parameter(description='- url of youtube video [optional]')) \
+            -> discord.Message | None:
+        """Play a song using url or a search query"""
+
         if not hasattr(ctx.author.voice, 'channel'):
             return await ctx.send('Please join a voice channel before using this command')
+
         if '&list=' in yt_url:
             return await ctx.send('Please provide a search qeury, a video url or use the playlist commands.')
 
@@ -150,17 +160,18 @@ class Playing(commands.Cog):
                 if ctx.voice_client:
                     ctx.voice_client.stop()
                 await join_vc(ctx)
-                await current(ctx, yt_url)
+                await current(ctx, yt_url, 'current')
                 await set_status(ctx, yt_url)
                 self.play_song(ctx, yt_url)
             else:
                 return await ctx.send('Please provide a valid youtube url.')
 
         else:
-            fetch_message = await ctx.send('Fetching results'
-                                           ', please wait for the embed with options to spawn to avoid errors.')
-            search_query = yt_url
-            song_embed = PicksongEmbed(ctx, search_query, ctx.bot, False)
+            fetch_message: discord.Message = await ctx.send('Fetching results'
+                                                            ', please wait for the embed with options to spawn to '
+                                                            'avoid errors.')
+            search_query: str = yt_url
+            song_embed = PicksongEmbed(ctx, search_query, False)
             await song_embed.send()
             while True:
                 if song_to_play is None:
@@ -173,46 +184,66 @@ class Playing(commands.Cog):
                     if ctx.voice_client.is_playing():
                         ctx.voice_client.stop()
                     else:
-                        await current(ctx, song_to_play)
+                        await current(ctx, song_to_play, 'current')
                         await set_status(ctx, song_to_play)
                         self.play_song(ctx, song_to_play)
                     break
 
-    # begin met afspelen van queue
+            return
+
+    @play.error
+    async def play_error(self, ctx: discord.ext.commands.Context, error) -> discord.Message | None:
+        if isinstance(error, commands.MissingRequiredArgument):
+            return await ctx.send('The command you are using is missing an argument, please check the help command'
+                                  ' for all required arguments')
+
     @commands.command()
-    async def start_queue(self, ctx):
+    async def start_queue(self, ctx: discord.ext.commands) -> None:
+        """Start playing queue"""
+
         if not hasattr(ctx.author.voice, 'channel'):
             return await ctx.send('Please join a voice channel before using this command')
         await join_vc(ctx)
-        await self.play_from_queue(ctx)
 
-    def play_song(self, ctx, song_to_play_link):
-        FFMPEG_OPTIONS = {'executable': FFMPEG_PATH,
-                          'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5',
-                          'options': '-vn'}
-        YT_DLP_OPTIONS = {'format': 'bestaudio'}
+        return await self.play_from_queue(ctx)
+
+    def play_song(self, ctx: discord.ext.commands.Context.voice_client, song_to_play_link: str) -> None:
+        """Function that uses FFMPEG to download and play a song"""
+
+        # setup
+        FFMPEG_OPTIONS: dict = {'executable': FFMPEG_PATH,
+                                'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5',
+                                'options': '-vn'}
+        YT_DLP_OPTIONS: dict = {'format': 'bestaudio'}
         vc = ctx.voice_client
+
+        # setup yt api and get song link
         with yt_dlp.YoutubeDL(YT_DLP_OPTIONS) as ydlp:
             if song_to_play_link in ctx.bot.queue:
                 ctx.bot.queue.remove(song_to_play_link)
-            ctx.bot.current_song = song_to_play_link
+            ctx.bot.current_song: str = song_to_play_link
+
+            # download and play song
             song_info = ydlp.extract_info("ytsearch:%s" % song_to_play_link, download=False)['entries'][0]
-            url2 = song_info['url']
+            url2: str = song_info['url']
             source_to_play = discord.FFmpegPCMAudio(url2, **FFMPEG_OPTIONS)
             vc.play(source_to_play, after=lambda e: asyncio.run_coroutine_threadsafe(self.play_from_queue(ctx),
                                                                                      self.bot.loop))
 
-    # speel items uit qeue, herhaalt zich dmv lambda functie
-    async def play_from_queue(self, ctx):
+    async def play_from_queue(self, ctx: discord.ext.commands.Context) -> None:
+        """Function that grabs the next song from queue and passses it to the play_song function"""
+
         if not ctx.bot.queue:
             await ctx.send('Qeue is empty, please provide a new song or playlist')
             return await self.bot.change_presence(activity=discord.Game(name='Waiting for a song to play...'))
         else:
             song_link = ctx.bot.queue[0]
             self.play_song(ctx, song_link)
-            await current(ctx, song_link)
-            await set_status(ctx, song_link)
+            await current(ctx, song_link, 'current')
+            return await set_status(ctx, song_link)
 
 
-async def setup(bot):
+async def setup(bot: discord.ext.commands.Bot) -> None:
+    """Function used to set up this cog"""
+
     await bot.add_cog(Playing(bot))

@@ -49,7 +49,7 @@ class Controls(commands.Cog):
     @commands.command()
     async def volume(self,
                      ctx: discord.ext.commands.Context.voice_client,
-                     volume: str = commands.parameter(description=': Desired % of max volume')) -> discord.Message:
+                     volume: str = commands.parameter(description='- Desired % of max volume')) -> discord.Message:
         """Change the volume of muziekbot's audio output"""
 
         voice_client = ctx.voice_client
@@ -83,7 +83,8 @@ class Controls(commands.Cog):
     async def skip(self, ctx: discord.ext.commands.Context.voice_client) -> Callable[[None], None]:
         """Skip the currently playing song"""
 
-        return await ctx.voice_client.stop()
+        await ctx.send('Skipping song')
+        return ctx.voice_client.stop()
 
 
 async def setup(bot: discord.ext.commands.Bot) -> None:

@@ -26,7 +26,8 @@ class Misc(commands.Cog):
         self.bot = bot
 
     @commands.command()
-    async def kill(self, ctx: discord.ext.commands.Context, code: str) -> None:
+    async def kill(self, ctx: discord.ext.commands.Context,
+                   code: str = commands.parameter(description='kill code')) -> None:
         """Admin only function to instantly take down muziekbot"""
 
         if ctx.message.author.id == 770658322054643744:
@@ -74,6 +75,7 @@ class Misc(commands.Cog):
         song_lyrics = song_lyrics.replace('Contributors', '')
         song_lyrics = song_lyrics.replace('Embed', '')
         song_lyrics = song_lyrics.replace('You might also like', '\n')
+        song_lyrics = song_lyrics.replace('[Ref', '\n[Ref')
 
         # remove final digits from lyrics if needed
         if song_lyrics[-1].isdigit() is True:
@@ -98,7 +100,7 @@ class Misc(commands.Cog):
     @commands.command()
     async def song_info(self,
                         ctx: discord.ext.commands.Context,
-                        song_index: str = commands.parameter(description='Position in queue of the song'))\
+                        song_index: str = commands.parameter(description='- Position in queue of the song'))\
             -> Callable[[tuple[str, str]], discord.Message] | discord.Message:
         """Show info on a song in queue"""
 
@@ -111,7 +113,7 @@ class Misc(commands.Cog):
             return await ctx.send('Please provide a valid song number')
 
         song_link: str = ctx.bot.queue[int(song_index) - 1]
-        await current(ctx, song_link)
+        await current(ctx, song_link, 'queue')
 
     @song_info.error
     async def song_info_error(self, ctx: discord.ext.commands.Context,
@@ -154,7 +156,7 @@ async def check_video_status(video_link: str) -> str:
         return 'invalid'
 
 
-async def current(ctx: discord.ext.commands.Context, song_link: str) -> discord.Message:
+async def current(ctx: discord.ext.commands.Context, song_link: str, current_or_queue) -> discord.Message:
     """Obtain song infro from yt api and returns this info in an embed"""
 
     # get song info from yt api
@@ -192,11 +194,17 @@ async def current(ctx: discord.ext.commands.Context, song_link: str) -> discord.
         await ctx.send('could not get thumbnail')
         thumbnail = None
 
+    if current_or_queue == 'current':
+        title = 'Current song\'s info:'
+    else:
+        title = 'Song info:'
+
     # maak embed
     embed = discord.Embed(
         colour=discord.Colour.dark_embed(),
-        title='Current song\'s info:',
+        title=title,
     )
+
     embed.set_thumbnail(url=thumbnail)
     embed.add_field(name='Song name: ', value=song_name, inline=False)
     embed.add_field(name='Song duration: ', value=duration, inline=False)
