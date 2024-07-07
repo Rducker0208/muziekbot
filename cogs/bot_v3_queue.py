@@ -1,6 +1,7 @@
 import os
 import random
 import datetime
+import asyncio
 
 import discord
 
@@ -8,6 +9,7 @@ from discord.ext import commands
 from googleapiclient.discovery import build
 
 from cogs.bot_v3_misc import check_video_status, get_songinfo
+from cogs.picking_song import PicksongEmbed
 
 
 YT_API_KEY: str = os.getenv('YT_API_KEY')
@@ -133,7 +135,8 @@ class Queuing(commands.Cog):
 
     @commands.command()
     async def queue(self, ctx: discord.ext.commands.Context,
-                    location: str = commands.parameter(description='- [front/back] location in queue where the song needs to go'), # noqa
+                    location: str = commands.parameter(description='- [front/back] location in queue where the song needs to go'),# noqa
+                    *,
                     song_link: str = commands.parameter(description='- url of the song'))\
             -> discord.Message:
         """Queue a song via an url"""
@@ -152,8 +155,27 @@ class Queuing(commands.Cog):
                 return await ctx.send('Sucessfully queued song.')
             else:
                 return await ctx.send('Please provide a valid youtube url.')
+
         else:
-            return await ctx.send('Please provide a valid youtube url containing https://www.youtube.com/watch?v=.')
+            fetch_message: discord.Message = await ctx.send('Fetching results'
+                                                            ', please wait for the embed with options to spawn to '
+                                                            'avoid errors.')
+            search_query: str = song_link
+            song_embed = PicksongEmbed(ctx, search_query, False)
+            await song_embed.send()
+
+            while True:
+                if ctx.bot.chosen_song is None:
+                    await asyncio.sleep(0.1)
+                else:
+                    if location == 'front':
+                        ctx.bot.queue.insert(0, ctx.bot.chosen_song)
+                    else:
+                        ctx.bot.queue.append(ctx.bot.chosen_song)
+
+                    ctx.bot.chosen_song = None
+                    await fetch_message.delete()
+                    return await ctx.send('Succesfully queued song.')
 
     @queue.error
     async def queue_error(self, ctx: discord.ext.commands.Context, error) -> discord.Message | None:
@@ -190,6 +212,25 @@ class Queuing(commands.Cog):
 
     @queue_playlist.error
     async def queue_playlist_error(self, ctx: discord.ext.commands.Context, error) -> discord.Message | None:
+        if isinstance(error, commands.MissingRequiredArgument):
+            return await ctx.send('The command you are using is missing an argument, please check the help command'
+                                  ' for all required arguments')
+
+    @commands.command()
+    async def queue_remove(self, ctx: discord.ext.commands.Context,
+                           song_index: str = commands.parameter(description='Location of song in queue'))\
+            -> discord.Message:
+        """Remove a song from queue"""
+
+        if not song_index.isnumeric() or not len(ctx.bot.queue) + 1 >= int(song_index) >= 1:
+            return await ctx.send('Please provide a valid song index')
+        else:
+            song_link = ctx.bot.queue.pop(int(song_index) - 1)
+            name, _ = get_songinfo(song_link[32:])
+            return await ctx.send(f'Succesfully removed ``{name}`` from queue.')
+
+    @queue_remove.error
+    async def queue_remove_error(self, ctx: discord.ext.commands.Context, error) -> discord.Message | None:
         if isinstance(error, commands.MissingRequiredArgument):
             return await ctx.send('The command you are using is missing an argument, please check the help command'
                                   ' for all required arguments')

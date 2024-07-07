@@ -28,6 +28,7 @@ def main():
     bot.queue = []
     bot.kill_code = kill_code
     bot.current_song = None
+    bot.chosen_song = None
 
     # Word getriggerd als bot online gaat
     @bot.event

@@ -214,7 +214,7 @@ async def current(ctx: discord.ext.commands.Context, song_link: str, current_or_
 
     # Aanvraag tijd
     curent_time: str = str(datetime.datetime.now())[11:-7]
-    embed.set_footer(text=f' Requested by: {ctx.message.author} at: {curent_time}')
+    embed.set_footer(text=f' Requested by {ctx.message.author} at: {curent_time}')
     return await ctx.send(embed=embed)
 
 
