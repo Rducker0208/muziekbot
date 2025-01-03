@@ -57,17 +57,17 @@ class Controls(commands.Cog):
         if voice_client is None:
             return await ctx.send('Multibot is not in a voicechannel')
 
-        # check of volume een nummer is en tussen de bruikbare waardes ligt
+        # // check if volume is a number between 0 and 100
         if volume.isnumeric() and 100 >= int(volume) >= 0:
             volume_to_use: float = int(volume) / 100
         else:
             return await ctx.send('Please provide a volume between 0 and 100')
 
-        # 2de aanpassing van volume of later -> voice_client.source.volume is in de eerste aanpassing aangemaakt
+        # // second change change of volume or later -> voice_client.source.volume gets created the first time this function is called
         if hasattr(ctx.voice_client.source, 'volume'):
             ctx.voice_client.source.volume = volume_to_use * 2
 
-        # 1ste aanpassing
+        # // This gets called the first time this command is called
         else:
             voice_client.source = discord.PCMVolumeTransformer(voice_client.source, volume=volume_to_use * 2)
 
